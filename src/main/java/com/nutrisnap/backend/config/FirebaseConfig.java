@@ -5,26 +5,22 @@ import com.google.firebase.FirebaseApp;
 import com.google.firebase.FirebaseOptions;
 import org.springframework.context.annotation.Configuration;
 
-import javax.annotation.PostConstruct;
+// ĐỔI CHỮ javax THÀNH jakarta Ở DÒNG NÀY:
+import jakarta.annotation.PostConstruct;
 import java.io.InputStream;
 
-@Configuration // Bắt buộc phải có chữ này để Spring Boot nhận diện
+@Configuration
 public class FirebaseConfig {
 
     @PostConstruct
     public void initialize() throws Exception {
-        // Chỉ khởi tạo nếu chưa có App nào chạy
         if (FirebaseApp.getApps().isEmpty()) {
-
-            // Tìm file chìa khóa trong thư mục resources
             InputStream serviceAccount = this.getClass().getClassLoader().getResourceAsStream("firebase-config.json");
 
-            // NẾU TÌM KHÔNG THẤY FILE, ÉP SERVER BÁO LỖI ĐỎ VÀ DỪNG LẠI NGAY LẬP TỨC
             if (serviceAccount == null) {
-                throw new RuntimeException("❌ LỖI NGHIÊM TRỌNG: Không tìm thấy file firebase-config.json trong thư mục resources! Hãy kiểm tra lại tên file.");
+                throw new RuntimeException("❌ LỖI NGHIÊM TRỌNG: Không tìm thấy file firebase-config.json trong thư mục resources!");
             }
 
-            // Tiến hành mở khóa Firebase
             FirebaseOptions options = FirebaseOptions.builder()
                     .setCredentials(GoogleCredentials.fromStream(serviceAccount))
                     .build();

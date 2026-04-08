@@ -1,30 +1,53 @@
 package com.nutrisnap.backend.service;
 
-import com.nutrisnap.backend.entity.Setting;
-import com.nutrisnap.backend.repository.SettingRepository;
-import org.springframework.beans.factory.annotation.Autowired;
+import com.google.api.core.ApiFuture;
+import com.google.cloud.firestore.DocumentReference;
+import com.google.cloud.firestore.DocumentSnapshot;
+import com.google.cloud.firestore.Firestore;
+import com.google.firebase.cloud.FirestoreClient;
+import com.nutrisnap.backend.model.SettingModel;
 import org.springframework.stereotype.Service;
+
+import java.util.concurrent.ExecutionException;
 
 @Service
 public class SettingService {
 
-    @Autowired
-    private SettingRepository settingRepository;
-
     // Lấy cấu hình của User, nếu chưa có thì tạo mặc định
-    public Setting getSettingByUserId(String userId) {
-        return settingRepository.findByUserId(userId)
-                .orElseGet(() -> {
-                    Setting defaultSetting = new Setting();
-                    defaultSetting.setUserId(userId);
-                    defaultSetting.setWaterReminderEnabled(true);
-                    defaultSetting.setWaterReminderInterval(120); // Mặc định 120 phút
-                    return settingRepository.save(defaultSetting);
-                });
+    public SettingModel getSettingByUserId(String userId) {
+        Firestore db = FirestoreClient.getFirestore();
+        DocumentReference docRef = db.collection("settings").document(userId); // Dùng userId làm ID
+
+        try {
+            ApiFuture<DocumentSnapshot> future = docRef.get();
+            DocumentSnapshot document = future.get(); // Lấy dữ liệu (chờ xử lý)
+
+            if (document.exists()) {
+                // Nếu đã có cấu hình, map thẳng từ Firebase sang Object
+                return document.toObject(SettingModel.class);
+            } else {
+                // Nếu chưa có, tạo cấu hình mặc định và lưu lên Firebase
+                SettingModel defaultSetting = new SettingModel();
+                defaultSetting.setUserId(userId);
+                defaultSetting.setWaterReminderEnabled(true);
+                defaultSetting.setWaterReminderInterval(120);
+                defaultSetting.setMealReminderTime("12:00");
+
+                docRef.set(defaultSetting); // Ghi đè lên Firebase
+                return defaultSetting;
+            }
+        } catch (InterruptedException | ExecutionException e) {
+            e.printStackTrace();
+            throw new RuntimeException("Lỗi khi đọc Firestore: " + e.getMessage());
+        }
     }
 
     // Cập nhật cấu hình mới
-    public Setting updateSetting(Setting setting) {
-        return settingRepository.save(setting);
+    public SettingModel updateSetting(SettingModel setting) {
+        Firestore db = FirestoreClient.getFirestore();
+        // Lấy document theo userId và ghi đè dữ liệu mới
+        DocumentReference docRef = db.collection("settings").document(setting.getUserId());
+        docRef.set(setting);
+        return setting;
     }
 }
